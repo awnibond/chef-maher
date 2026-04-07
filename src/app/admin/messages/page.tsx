@@ -159,7 +159,20 @@ export default function AdminMessagesPage() {
               {approved.map((entry) => (
                 <div key={entry.id} className="rounded-[24px] border border-[#ffe0e8] bg-[#fffafc] p-4">
                   <div className="mb-2 font-black text-[#3c2c2c]">{entry.name || "A kind neighbor"}</div>
-                  <p className="text-sm text-[#6f5656]">{entry.message || "No text message"}</p>
+                  <p className="mb-3 text-sm text-[#6f5656]">{entry.message || "No text message"}</p>
+                  {entry.audio_path ? (
+                    <div className="rounded-2xl bg-[#fff7f1] p-3">
+                      <div className="mb-2 text-xs font-bold uppercase tracking-wide text-[#c95b52]">Approved audio</div>
+                      {audioUrls[entry.id] ? (
+                        <audio controls src={audioUrls[entry.id]} className="w-full" />
+                      ) : (
+                        <p className="text-sm text-[#8b6b6b]">Loading audio...</p>
+                      )}
+                      {entry.audio_duration ? (
+                        <p className="mt-2 text-xs text-[#8b6b6b]">Duration: {entry.audio_duration}s</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
