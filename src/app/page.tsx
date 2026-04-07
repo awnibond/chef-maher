@@ -65,6 +65,7 @@ const menuItems: MenuItem[] = [
     description: "Pick one savory favorite with one sweet crepe.",
     ingredients: ["Choose Pasta + Crepe", "or Mac & Cheese + Crepe"],
     badge: "Best deal",
+    image: "/images/combo.jpg",
     emoji: "⭐",
   },
 ];
