@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 type MenuItem = {
   id: string;
@@ -13,10 +14,13 @@ type MenuItem = {
 };
 
 type SupportMessage = {
-  id: number;
+  id: string | number;
   name: string;
   message: string;
   emoji: string;
+  created_at?: string;
+  audio_path?: string | null;
+  audio_duration?: number | null;
 };
 
 const WHATSAPP_NUMBER = "971559595383";
@@ -88,6 +92,8 @@ const starterSupportMessages: SupportMessage[] = [
   },
 ];
 
+const emojiOptions = ["🍓", "⭐", "💛", "🎉", "🧁"];
+
 function formatAED(value: number) {
   return `${value} AED`;
 }
@@ -116,23 +122,50 @@ export default function Home() {
   const [supportName, setSupportName] = useState("");
   const [supportMessage, setSupportMessage] = useState("");
   const [supportAudioUrl, setSupportAudioUrl] = useState<string | null>(null);
+  const [supportAudioBlob, setSupportAudioBlob] = useState<Blob | null>(null);
   const [supportAudioDuration, setSupportAudioDuration] = useState<number | null>(null);
   const [supportWallMessages, setSupportWallMessages] = useState<SupportMessage[]>(starterSupportMessages);
+  const [isSubmittingSupport, setIsSubmittingSupport] = useState(false);
+  const [supportSuccess, setSupportSuccess] = useState<string | null>(null);
   const supportRecorderRef = useRef<MediaRecorder | null>(null);
   const supportChunksRef = useRef<Blob[]>([]);
   const supportStartedAtRef = useRef<number | null>(null);
   const [isSupportRecording, setIsSupportRecording] = useState(false);
 
+  useEffect(() => {
+    const loadApprovedMessages = async () => {
+      const { data, error } = await supabase
+        .from("support_messages")
+        .select("id,name,message,audio_path,audio_duration,created_at")
+        .eq("status", "approved")
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      if (!error && data && data.length > 0) {
+        const mapped = data.map((row, index) => ({
+          id: row.id,
+          name: row.name || "A kind neighbor",
+          message: row.message || "Sent a cheerful message for Chef Maher.",
+          audio_path: row.audio_path,
+          audio_duration: row.audio_duration,
+          created_at: row.created_at,
+          emoji: emojiOptions[index % emojiOptions.length],
+        }));
+        setSupportWallMessages(mapped);
+      }
+    };
+
+    loadApprovedMessages();
+  }, []);
+
   const updateQty = (id: string, delta: number) => {
-    setQuantities((prev) => {
-      const next = Math.max(0, (prev[id] || 0) + delta);
-      return { ...prev, [id]: next };
-    });
+    const currentQty = quantities[id] || 0;
+    const nextQty = Math.max(0, currentQty + delta);
+
+    setQuantities((prev) => ({ ...prev, [id]: nextQty }));
 
     if (id === "crepe") {
       setCrepeToppingsSelected((prev) => {
-        const currentQty = quantities.crepe || 0;
-        const nextQty = Math.max(0, currentQty + delta);
         if (nextQty > prev.length) {
           return [...prev, ...Array(nextQty - prev.length).fill("")];
         }
@@ -197,7 +230,6 @@ export default function Home() {
     lines.push(`Building / Villa / House No.: ${house || "-"}`);
     lines.push(`Street / Landmark: ${landmark || "-"}`);
     lines.push(`Extra instructions: ${instructions || "-"}`);
-
     lines.push("");
     lines.push("Thank you Chef Maher 👨‍🍳");
 
@@ -219,6 +251,7 @@ export default function Home() {
         const blob = new Blob(supportChunksRef.current, { type: "audio/webm" });
         if (supportAudioUrl) URL.revokeObjectURL(supportAudioUrl);
         const url = URL.createObjectURL(blob);
+        setSupportAudioBlob(blob);
         setSupportAudioUrl(url);
         const seconds = supportStartedAtRef.current
           ? Math.max(1, Math.round((Date.now() - supportStartedAtRef.current) / 1000))
@@ -242,29 +275,55 @@ export default function Home() {
   const resetSupportRecording = () => {
     if (supportAudioUrl) URL.revokeObjectURL(supportAudioUrl);
     setSupportAudioUrl(null);
+    setSupportAudioBlob(null);
     setSupportAudioDuration(null);
   };
 
-  const submitSupportMessage = () => {
-    if (!supportName.trim() && !supportMessage.trim()) {
-      alert("Add at least a name or a sweet message for Chef Maher first.");
+  const submitSupportMessage = async () => {
+    if (!supportName.trim() && !supportMessage.trim() && !supportAudioBlob) {
+      alert("Add at least a name, a sweet message, or a voice note for Chef Maher first.");
       return;
     }
 
-    const emojiOptions = ["🍓", "⭐", "💛", "🎉", "🧁"];
-    const nextMessage: SupportMessage = {
-      id: Date.now(),
-      name: supportName.trim() || "A kind neighbor",
-      message:
-        supportMessage.trim() ||
-        "Sent a cheerful voice note for Chef Maher.",
-      emoji: emojiOptions[Math.floor(Math.random() * emojiOptions.length)],
-    };
+    setIsSubmittingSupport(true);
+    setSupportSuccess(null);
 
-    setSupportWallMessages((prev) => [nextMessage, ...prev]);
-    setSupportName("");
-    setSupportMessage("");
-    resetSupportRecording();
+    let audioPath: string | null = null;
+
+    try {
+      if (supportAudioBlob) {
+        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webm`;
+        audioPath = `pending/${fileName}`;
+        const { error: uploadError } = await supabase.storage
+          .from("support-audio")
+          .upload(audioPath, supportAudioBlob, {
+            contentType: "audio/webm",
+            upsert: false,
+          });
+
+        if (uploadError) throw uploadError;
+      }
+
+      const { error: insertError } = await supabase.from("support_messages").insert({
+        name: supportName.trim() || "A kind neighbor",
+        message: supportMessage.trim() || "Sent a cheerful voice message for Chef Maher.",
+        audio_path: audioPath,
+        audio_duration: supportAudioDuration,
+        status: "pending",
+      });
+
+      if (insertError) throw insertError;
+
+      setSupportSuccess("Your yummy message was sent for Chef Maher’s review 💛");
+      setSupportName("");
+      setSupportMessage("");
+      resetSupportRecording();
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong while sending the message. Try again in a moment.");
+    } finally {
+      setIsSubmittingSupport(false);
+    }
   };
 
   return (
@@ -498,15 +557,26 @@ export default function Home() {
                   {supportAudioUrl ? (
                     <div className="space-y-2">
                       <audio controls src={supportAudioUrl} className="w-full" />
-                      <p className="text-sm text-[#7a5d5d]">Voice cheer ready{supportAudioDuration ? ` (${supportAudioDuration}s)` : ""}.</p>
+                      <p className="text-sm text-[#7a5d5d]">Voice cheer ready{supportAudioDuration ? ` (${supportAudioDuration}s)` : ""}. It will be sent for review before appearing on the wall.</p>
                     </div>
                   ) : (
                     <p className="text-sm text-[#7a5d5d]">No voice message yet — totally optional.</p>
                   )}
                 </div>
 
-                <button type="button" onClick={submitSupportMessage} className="w-full rounded-full bg-[#ef5d46] px-6 py-4 text-lg font-black text-white shadow-lg transition hover:scale-[1.01]">
-                  💛 Add to the Yummy Messages Wall
+                {supportSuccess && (
+                  <div className="rounded-2xl bg-[#ecfff2] px-4 py-3 text-sm font-semibold text-[#217846]">
+                    {supportSuccess}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={submitSupportMessage}
+                  disabled={isSubmittingSupport}
+                  className="w-full rounded-full bg-[#ef5d46] px-6 py-4 text-lg font-black text-white shadow-lg transition hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {isSubmittingSupport ? "Sending your yummy message..." : "💛 Add to the Yummy Messages Wall"}
                 </button>
               </div>
             </div>
