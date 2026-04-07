@@ -1,0 +1,1 @@
+Placeholders for imported local assets. Real images copied in next step.
