@@ -216,8 +216,15 @@ export default function Home() {
       lines.push("- No items selected yet");
     } else {
       selectedItems.forEach(({ item, qty }) => {
-        lines.push(`- ${item.name} x${qty} — ${formatAED(item.price * qty)}`);
-        if (item.id === "combo-offer" && comboChoice) lines.push(`  • Combo choice: ${comboChoice}`);
+        if (item.id === "combo-offer" && comboChoice) {
+          lines.push(`- ${item.name} x${qty} — ${formatAED(item.price * qty)}`);
+          lines.push(`  • Selected combo: ${comboChoice}`);
+        } else if (item.id === "combo-offer" && !comboChoice) {
+          lines.push(`- ${item.name} x${qty} — ${formatAED(item.price * qty)}`);
+          lines.push(`  • Selected combo: Not chosen yet`);
+        } else {
+          lines.push(`- ${item.name} x${qty} — ${formatAED(item.price * qty)}`);
+        }
       });
     }
 
