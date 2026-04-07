@@ -334,11 +334,17 @@ export default function Home() {
                 <span className="rounded-full bg-[#fff] px-4 py-2 text-sm font-semibold text-[#d24e6e]">⭐ Fresh and yummy</span>
                 <span className="rounded-full bg-[#fff] px-4 py-2 text-sm font-semibold text-[#d24e6e]">💌 Send by WhatsApp</span>
               </div>
-              <div className="rounded-[24px] bg-white/80 p-4 shadow-md">
-                <div className="mb-2 text-sm font-black uppercase tracking-wide text-[#ef5d46]">Open Hours</div>
-                <div className="space-y-1 text-sm text-[#6f4f4f]">
-                  <div><strong>Thu – Fri – Sat</strong>: 12:00 PM – 3:00 PM</div>
-                  <div><strong>Sunday</strong>: 5:00 PM – 8:00 PM</div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-[24px] bg-white/80 p-4 shadow-md">
+                  <div className="mb-2 text-sm font-black uppercase tracking-wide text-[#ef5d46]">Open Hours</div>
+                  <div className="space-y-1 text-sm text-[#6f4f4f]">
+                    <div><strong>Thu – Fri – Sat</strong>: 12:00 PM – 3:00 PM</div>
+                    <div><strong>Sunday</strong>: 5:00 PM – 8:00 PM</div>
+                  </div>
+                </div>
+                <div className="rounded-[24px] bg-white/80 p-4 shadow-md">
+                  <div className="mb-2 text-sm font-black uppercase tracking-wide text-[#ef5d46]">Payment Note</div>
+                  <div className="text-sm text-[#6f4f4f]"><strong>Cash payments only</strong> 🤑</div>
                 </div>
               </div>
             </div>
